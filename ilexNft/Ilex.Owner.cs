@@ -26,6 +26,17 @@ namespace ilexNft
             return OwnerStorage.Get();
         }
 
+        public static void SetBaseName(string baseName)
+        {
+            Assert(Runtime.CheckWitness(GetOwner()), "SetBaseName: CheckWitness failed");
+            BaseNameStorage.Put(baseName);
+        }
+
+        public static void SetBaseImage(string baseImage)
+        {
+            Assert(Runtime.CheckWitness(GetOwner()), "SetBaseImage: CheckWitness failed");
+            BaseImageStorage.Put(baseImage);
+        }
 
         /// <summary>
         /// 更换合约所有者
@@ -34,8 +45,8 @@ namespace ilexNft
         /// <returns></returns>
         public static bool ChangeOwner(UInt160 owner)
         {
-            Assert(Runtime.CheckWitness(GetOwner()), "SetOwner: CheckWitness failed, owner-".ToByteArray().Concat(owner).ToByteString());
-            Assert(CheckAddrVaild(owner), "SetOwner: invalid owner-".ToByteArray().Concat(owner).ToByteString());
+            Assert(Runtime.CheckWitness(GetOwner()), "ChangeOwner: CheckWitness failed");
+            Assert(CheckAddrVaild(owner), "ChangeOwner: invalid owner");
             OwnerStorage.Put(owner);
             OnChangeOwner(owner);
             return true;

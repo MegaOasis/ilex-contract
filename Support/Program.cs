@@ -25,15 +25,20 @@ namespace Support
 
         private static KeyPair keyPair = Neo.Network.RPC.Utility.GetKeyPair("L5kyCkYVsAJu488Df6xnmeNYcnHi5uHNrYUUVwo8X2MqcrjV3QqQ");
 
-        private static UInt160 ilex = UInt160.Parse("0xafc8bb5d26f43980212da297d3316cf663917bab");
+        private static UInt160 ilex = UInt160.Parse("0x3a8aff90be1cf25d715dc3c79e729cd205f749b4");
 
         static void Main()
         {
             //DeployContract("/Users/yinwei/work/neo/3/ilex/ilexNft/bin/sc/", "ilex");
             //UpdateContract(ilex, "/Users/yinwei/work/neo/3/ilex/ilexNft/bin/sc/", "ilex");
 
+            //SetBaseName(ilex, "ilexNFT #");
+            //BaseName(ilex);
+
+            //SetBaseImage(ilex, "ipfs://NewUriToReplace/");
             //BatchCreate(ilex, "./metadata.txt");
-            Properties(ilex, new ContractParameter() { Type = ContractParameterType.ByteArray, Value = Convert.FromBase64String("aWxleE5GVCAjMQ==") });
+            //UpdateProperties(ilex, "./metadata.txt");
+            Properties(ilex, 1);
             Console.ReadKey();
         }
 
@@ -83,6 +88,32 @@ namespace Support
             Helper.SignAndSendTx(_rpcClient, script, signers, null, keyPair);
         }
 
+        private static void SetBaseName(UInt160 contract, string baseName)
+        {
+            byte[] script;
+            using (ScriptBuilder sb = new ScriptBuilder())
+            {
+                sb.EmitDynamicCall(contract, "setBaseName", baseName);
+                script = sb.ToArray();
+            }
+            Signer[] signers = new[] { new Signer { Scopes = WitnessScope.Global, Account = keyPair.GetScriptHash() } };
+
+            Helper.SignAndSendTx(_rpcClient, script, signers, null, keyPair);
+        }
+
+        private static void SetBaseImage(UInt160 contract, string baseImage)
+        {
+            byte[] script;
+            using (ScriptBuilder sb = new ScriptBuilder())
+            {
+                sb.EmitDynamicCall(contract, "setBaseImage", baseImage);
+                script = sb.ToArray();
+            }
+            Signer[] signers = new[] { new Signer { Scopes = WitnessScope.Global, Account = keyPair.GetScriptHash() } };
+
+            Helper.SignAndSendTx(_rpcClient, script, signers, null, keyPair);
+        }
+
         private static void BatchCreate(UInt160 contract, string path)
         {
             //UInt160 owner, ByteString tokenId, string name, string description, string image, string dna, BigInteger edition, BigInteger date, string complier, ByteString[] attributes
@@ -104,25 +135,25 @@ namespace Support
                         int edition = ((int)jo["edition"]);
                         long date = ((long)jo["date"]);
                         string compiler = ((string?)jo["compiler"]);
-                        JArray Ja_atrs = jo["attributes"] as JArray;
-                        ContractParameter contractParameter = new ContractParameter();
-                        contractParameter.Type = ContractParameterType.Array;
-                        contractParameter.Value = new List<ContractParameter>();
-                        foreach (var ja_atr in Ja_atrs)
-                        {
-                            ContractParameter _contractParameter = new ContractParameter();
-                            _contractParameter.Type = ContractParameterType.ByteArray;
-                            ContractParameter trait_type = new ContractParameter(ContractParameterType.String);
-                            trait_type.SetValue((string?)ja_atr["trait_type"]);
-                            ContractParameter value = new ContractParameter(ContractParameterType.String);
-                            value.SetValue((string?)ja_atr["value"]);
-                            _contractParameter.Value = Convert.FromBase64String(SerilizeAttribute(contract, trait_type, value));
-                            ((List<ContractParameter>)contractParameter.Value).Add(_contractParameter);
-                        }
-                        string attributes = SerilizeAttributes(contract, contractParameter);
-                        ContractParameter contractParameter1 = new ContractParameter(ContractParameterType.ByteArray);
-                        contractParameter1.Value = Convert.FromBase64String(attributes);
-                        sb.EmitDynamicCall(contract, "create", keyPair.GetScriptHash(), name, name, description, image, dna, edition, date, compiler, contractParameter1);
+                        //JArray Ja_atrs = jo["attributes"] as JArray;
+                        //ContractParameter contractParameter = new ContractParameter();
+                        //contractParameter.Type = ContractParameterType.Array;
+                        //contractParameter.Value = new List<ContractParameter>();
+                        //foreach (var ja_atr in Ja_atrs)
+                        //{
+                        //    ContractParameter _contractParameter = new ContractParameter();
+                        //    _contractParameter.Type = ContractParameterType.ByteArray;
+                        //    ContractParameter trait_type = new ContractParameter(ContractParameterType.String);
+                        //    trait_type.SetValue((string?)ja_atr["trait_type"]);
+                        //    ContractParameter value = new ContractParameter(ContractParameterType.String);
+                        //    value.SetValue((string?)ja_atr["value"]);
+                        //    _contractParameter.Value = Convert.FromBase64String(SerilizeAttribute(contract, trait_type, value));
+                        //    ((List<ContractParameter>)contractParameter.Value).Add(_contractParameter);
+                        //}
+                        //string attributes = SerilizeAttributes(contract, contractParameter);
+                        //ContractParameter contractParameter1 = new ContractParameter(ContractParameterType.ByteArray);
+                        //contractParameter1.Value = Convert.FromBase64String(attributes);
+                        sb.EmitDynamicCall(contract, "create", keyPair.GetScriptHash(), dna, edition, date);
                     }
                     script = sb.ToArray();
                 }
@@ -131,6 +162,42 @@ namespace Support
 
                 Helper.SignAndSendTx(_rpcClient, script, signers, null, keyPair);
             }
+        }
+
+
+        private static void UpdateProperties(UInt160 contract, string path)
+        {
+            //UInt160 owner, ByteString tokenId, string name, string description, string image, string dna, BigInteger edition, BigInteger date, string complier, ByteString[] attributes
+            byte[] script;
+            var txt = File.ReadAllText(path);
+            JArray jarray = JArray.Parse(txt);
+            using (ScriptBuilder sb = new ScriptBuilder())
+            {
+                JArray Ja_atrs = jarray[0]["attributes"] as JArray;
+                ContractParameter contractParameter = new ContractParameter();
+                contractParameter.Type = ContractParameterType.Array;
+                contractParameter.Value = new List<ContractParameter>();
+                foreach (var ja_atr in Ja_atrs)
+                {
+                    ContractParameter _contractParameter = new ContractParameter();
+                    _contractParameter.Type = ContractParameterType.ByteArray;
+                    ContractParameter trait_type = new ContractParameter(ContractParameterType.String);
+                    trait_type.SetValue((string?)ja_atr["trait_type"]);
+                    ContractParameter value = new ContractParameter(ContractParameterType.String);
+                    value.SetValue((string?)ja_atr["value"]);
+                    _contractParameter.Value = Convert.FromBase64String(SerilizeAttribute(contract, trait_type, value));
+                    ((List<ContractParameter>)contractParameter.Value).Add(_contractParameter);
+                }
+                string attributes = SerilizeAttributes(contract, contractParameter);
+                ContractParameter contractParameter1 = new ContractParameter(ContractParameterType.ByteArray);
+                contractParameter1.Value = Convert.FromBase64String(attributes);
+                sb.EmitDynamicCall(contract, "updateProperties", 1, contractParameter1);
+                script = sb.ToArray();
+            }
+
+            Signer[] signers = new[] { new Signer { Scopes = WitnessScope.Global, Account = keyPair.GetScriptHash() } };
+
+            Helper.SignAndSendTx(_rpcClient, script, signers, null, keyPair);
         }
 
         private static string SerilizeAttribute(UInt160 _ilex, ContractParameter type, ContractParameter value)
@@ -169,6 +236,18 @@ namespace Support
             return Helper.InvokeScript(_rpcClient, script, signers);
         }
 
+        private static string BaseName(UInt160 _ilex)
+        {
+            byte[] script;
+            using (ScriptBuilder sb = new ScriptBuilder())
+            {
+                sb.EmitDynamicCall(_ilex, "baseName");
+                script = sb.ToArray();
+            }
+            Signer[] signers = new[] { new Signer { Scopes = WitnessScope.Global, Account = keyPair.GetScriptHash() } };
+            return Helper.InvokeScript(_rpcClient, script, signers);
+        }
+
         private static string DeserializeAttributes(UInt160 _ilex, ContractParameter contractParameter)
         {
             byte[] script;
@@ -181,7 +260,7 @@ namespace Support
             return Helper.InvokeScript(_rpcClient, script, signers);
         }
 
-        private static string Properties(UInt160 _ilex, ContractParameter tokenid)
+        private static string Properties(UInt160 _ilex, BigInteger tokenid)
         {
             byte[] script;
             using (ScriptBuilder sb = new ScriptBuilder())

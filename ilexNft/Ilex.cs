@@ -19,13 +19,11 @@ namespace ilexNft
 
     public class TokenState : Nep11TokenState
     {
-        public string Description;
-        public string Image;
+        public BigInteger TokenId;
         public string Dna;
         public BigInteger Edition;
         public BigInteger Date;
         public ByteString Attributes;
-        public string Compiler;
 
     }
 
@@ -42,17 +40,42 @@ namespace ilexNft
         [Safe]
         public override string Symbol()
         {
-            return "MetaPanacea";
+            return "ilex";
         }
 
         [Safe]
-        public string Version()
+        public static string Version()
         {
-            return "20220628";
+            return "20220629";
         }
 
         [Safe]
-        public ByteString SerilizeAttribute(ByteString type, ByteString value)
+        public static string Description()
+        {
+            return "ilex test snake";
+        }
+
+        [Safe]
+        public static string Compiler()
+        {
+            return "ilex";
+        }
+
+        [Safe]
+        public static string BaseName()
+        {
+            return BaseNameStorage.Get();
+        }
+
+        [Safe]
+        public static string BaseImage()
+        {
+            return BaseImageStorage.Get();
+        } 
+
+
+        [Safe]
+        public static ByteString SerilizeAttribute(ByteString type, ByteString value)
         {
             IlexAttribute attribute = new IlexAttribute() { Trait_type = type, Value = value };
 
@@ -60,7 +83,7 @@ namespace ilexNft
         }
 
         [Safe]
-        public Map<string, string> DeserializeAttribute(ByteString str)
+        public static Map<string, string> DeserializeAttribute(ByteString str)
         {
             IlexAttribute attr = (IlexAttribute)StdLib.Deserialize(str);
             Map<string, string> map = new();
@@ -70,13 +93,13 @@ namespace ilexNft
         }
 
         [Safe]
-        public ByteString SerilizeAttributes(ByteString[] attrs)
+        public static ByteString SerilizeAttributes(ByteString[] attrs)
         {
             return StdLib.Serialize(attrs);
         }
 
         [Safe]
-        public Map<string, string>[] DeserializeAttributes(ByteString bytestring)
+        public static Map<string, string>[] DeserializeAttributes(ByteString bytestring)
         {
             ByteString[] strs = (ByteString[])StdLib.Deserialize(bytestring);
             Map<string, string>[] maps = new Map<string, string>[strs.Length];
@@ -99,34 +122,61 @@ namespace ilexNft
             TokenState token = (TokenState)StdLib.Deserialize(tokenMap[tokenId]);
             Map<string, object> map = new();
             map["name"] = token.Name;
-            map["description"] = token.Description;
-            map["image"] = token.Image;
+            map["id"] = token.TokenId;
+            map["description"] = Description();
+            map["image"] = BaseImage() + (BigInteger)tokenId + ".png";
             map["dna"] = token.Dna;
             map["edition"] = token.Edition;
             map["date"] = token.Date;
-            map["compiler"] = token.Compiler;
-            Map<string, string>[] attributes = DeserializeAttributes(token.Attributes);
-            map["attributes"] = attributes;
+            map["compiler"] = Compiler();
+            if(token.Attributes != "")
+            {
+                Map<string, string>[] attributes = DeserializeAttributes(token.Attributes);
+                map["attributes"] = attributes;
+            }
+            else
+            {
+                map["attributes"] = new Array[0];
+            }
             return map;
         }
 
-        public static void Create(UInt160 owner, ByteString tokenId, string name, string description, string image, string dna, BigInteger edition, BigInteger date, string complier, ByteString attributes)
+        public static void Create(UInt160 owner, string dna, BigInteger edition, BigInteger date)
         {
+            ///是否需要收费？？？
+
+
+            Assert(Runtime.CheckWitness(owner), "Create: CheckWitness failed");
+
+            CounterStorage.Increase();
+            BigInteger tokenId = CounterStorage.Current();
+
             StorageMap tokenMap = new(Storage.CurrentContext, Prefix_Token);
-            var data = tokenMap.Get(tokenId);
+            var data = tokenMap.Get((ByteString)tokenId);
             Assert(data is null, "Create: tokenid exist");
-            Assert(Runtime.CheckWitness(GetOwner()), "Create: CheckWitness failed");
-            TokenState tokenState = new TokenState() { Name = name, Description = description, Image = image, Dna = dna, Owner = owner, Edition = edition, Date = date, Compiler = complier, Attributes = attributes};
-            Mint(tokenId, tokenState);
+            TokenState tokenState = new TokenState()
+            {
+                TokenId = tokenId,
+                Name = BaseName() + tokenId,
+                Dna = dna,
+                Owner = owner,
+                Edition = edition,
+                Date = date,
+                Attributes = ""
+            };
+            Mint((ByteString)tokenId, tokenState);
         }
 
-        public static void UpdateProperties(UInt160 owner, ByteString tokenId, string name, string description, string image, string dna, BigInteger edition, BigInteger date, string complier, ByteString attributes)
+        public static void UpdateProperties(BigInteger tokenId, ByteString attributes)
         {
-            Assert(Runtime.CheckWitness(GetOwner()), "Create: CheckWitness failed");
-            TokenState tokenState = new TokenState() { Name = name, Description = description, Image = image, Dna = dna, Owner = owner, Edition = edition, Date = date, Compiler = complier, Attributes = attributes};
+            Assert(Runtime.CheckWitness(GetOwner()), "UpdateProperties: CheckWitness failed");
             StorageMap tokenMap = new(Storage.CurrentContext, Prefix_Token);
-            tokenMap.Put(tokenId, StdLib.Serialize(tokenMap));
-            OnUpdateProperties(tokenId);
+            var data = tokenMap.Get((ByteString)tokenId);
+            Assert(data is not null, "UpdateProperties: tokenid not exist");
+            TokenState tokenState = (TokenState)StdLib.Deserialize(data);
+            tokenState.Attributes = attributes;
+            tokenMap.Put((ByteString)tokenId, StdLib.Serialize(tokenState));
+            OnUpdateProperties((ByteString)tokenId);
         }
     }
 }
