@@ -25,7 +25,9 @@ namespace Support
 
         private static KeyPair keyPair = Neo.Network.RPC.Utility.GetKeyPair("L5kyCkYVsAJu488Df6xnmeNYcnHi5uHNrYUUVwo8X2MqcrjV3QqQ");
 
-        private static UInt160 ilex = UInt160.Parse("0x3a8aff90be1cf25d715dc3c79e729cd205f749b4");
+        private static UInt160 fusdt = UInt160.Parse("0xac77b08ac1ed383fa0e157f99a7965d483b161a8");
+
+        private static UInt160 ilex = UInt160.Parse("0x499a0bae053a3553e34d29db4d17b3b844056ae9");
 
         static void Main()
         {
@@ -34,11 +36,13 @@ namespace Support
 
             //SetBaseName(ilex, "ilexNFT #");
             //BaseName(ilex);
+            //SetAsset(ilex, fusdt, 100000000);
 
             //SetBaseImage(ilex, "ipfs://NewUriToReplace/");
             //BatchCreate(ilex, "./metadata.txt");
+            Transfer(ilex, "./metadata.txt", fusdt, 100000000);
             //UpdateProperties(ilex, "./metadata.txt");
-            Properties(ilex, 1);
+            //Properties(ilex, 1);
             Console.ReadKey();
         }
 
@@ -107,6 +111,43 @@ namespace Support
             using (ScriptBuilder sb = new ScriptBuilder())
             {
                 sb.EmitDynamicCall(contract, "setBaseImage", baseImage);
+                script = sb.ToArray();
+            }
+            Signer[] signers = new[] { new Signer { Scopes = WitnessScope.Global, Account = keyPair.GetScriptHash() } };
+
+            Helper.SignAndSendTx(_rpcClient, script, signers, null, keyPair);
+        }
+
+        private static void SetAsset(UInt160 contract, UInt160 asset, BigInteger price)
+        {
+            byte[] script;
+            using (ScriptBuilder sb = new ScriptBuilder())
+            {
+                sb.EmitDynamicCall(contract, "setAsset", asset, price);
+                script = sb.ToArray();
+            }
+            Signer[] signers = new[] { new Signer { Scopes = WitnessScope.Global, Account = keyPair.GetScriptHash() } };
+
+            Helper.SignAndSendTx(_rpcClient, script, signers, null, keyPair);
+        }
+
+        private static void Transfer(UInt160 contract, string path, UInt160 asset, BigInteger price)
+        {
+            var txt = File.ReadAllText(path);
+            JArray jarray = JArray.Parse(txt);
+            var jo = jarray[0];
+            string name = ((string?)jo["name"]);
+            string description = ((string?)jo["description"]);
+            string image = ((string?)jo["image"]);
+            string dna = ((string?)jo["dna"]);
+            int edition = ((int)jo["edition"]);
+            long date = ((long)jo["date"]);
+            string compiler = ((string?)jo["compiler"]);
+            var data = SerilizeNEP17Payment(contract, dna, edition, date);
+            byte[] script;
+            using (ScriptBuilder sb = new ScriptBuilder())
+            {
+                sb.EmitDynamicCall(asset, "transfer", keyPair.GetScriptHash(), contract, price, Convert.FromBase64String(data));
                 script = sb.ToArray();
             }
             Signer[] signers = new[] { new Signer { Scopes = WitnessScope.Global, Account = keyPair.GetScriptHash() } };
@@ -198,6 +239,18 @@ namespace Support
             Signer[] signers = new[] { new Signer { Scopes = WitnessScope.Global, Account = keyPair.GetScriptHash() } };
 
             Helper.SignAndSendTx(_rpcClient, script, signers, null, keyPair);
+        }
+
+        private static string SerilizeNEP17Payment(UInt160 _ilex, string dna, BigInteger edition, BigInteger date)
+        {
+            byte[] script;
+            using (ScriptBuilder sb = new ScriptBuilder())
+            {
+                sb.EmitDynamicCall(_ilex, "serilizeNEP17Payment", dna, edition, date);
+                script = sb.ToArray();
+            }
+            Signer[] signers = new[] { new Signer { Scopes = WitnessScope.Global, Account = keyPair.GetScriptHash() } };
+            return Helper.InvokeScript(_rpcClient, script, signers);
         }
 
         private static string SerilizeAttribute(UInt160 _ilex, ContractParameter type, ContractParameter value)

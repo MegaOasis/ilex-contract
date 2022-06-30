@@ -16,6 +16,8 @@ namespace ilexNft
 
         private static readonly byte[] baseImagePrefix = new byte[] { 0x01, 0x04 };
 
+        private static readonly byte[] assetPrefix = new byte[] { 0x01, 0x05 };
+
         public static class OwnerStorage
         {
             internal static void Put(UInt160 usr)
@@ -97,6 +99,26 @@ namespace ilexNft
                 StorageMap map = new(Storage.CurrentContext, baseImagePrefix);
                 return (string)map.Get((ByteString)"baseImage");
             }
+        }
+
+        public static class AssetStorage
+        {
+            internal static void Put(UInt160 asset, BigInteger price)
+            {
+                StorageMap map = new(Storage.CurrentContext, assetPrefix);
+                map.Put(asset, price);
+            }
+
+            internal static BigInteger Get(UInt160 asset)
+            {
+                StorageMap map = new(Storage.CurrentContext, assetPrefix);
+                var data = map.Get(asset);
+                if (data is not null)
+                    return (BigInteger)map.Get(asset);
+                else
+                    return 0;
+            }
+
         }
     }
 }

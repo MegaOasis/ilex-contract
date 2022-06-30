@@ -5,6 +5,8 @@ using Neo.SmartContract;
 using Neo.SmartContract.Framework;
 using Neo.SmartContract.Framework.Attributes;
 using Neo.SmartContract.Framework.Services;
+using System.Numerics;
+using Neo.SmartContract.Framework.Native;
 
 namespace ilexNft
 {
@@ -38,6 +40,12 @@ namespace ilexNft
             BaseImageStorage.Put(baseImage);
         }
 
+        public static void SetAsset(UInt160 asset, BigInteger price)
+        {
+            Assert(Runtime.CheckWitness(GetOwner()), "SetAsset: CheckWitness failed");
+            AssetStorage.Put(asset, price);
+        }
+
         /// <summary>
         /// 更换合约所有者
         /// </summary>
@@ -50,6 +58,23 @@ namespace ilexNft
             OwnerStorage.Put(owner);
             OnChangeOwner(owner);
             return true;
+        }
+
+        /// <summary>
+        /// 修改nft的属性
+        /// </summary>
+        /// <param name="tokenId"></param>
+        /// <param name="attributes"></param>
+        public static void UpdateProperties(BigInteger tokenId, ByteString attributes)
+        {
+            Assert(Runtime.CheckWitness(GetOwner()), "UpdateProperties: CheckWitness failed");
+            StorageMap tokenMap = new(Storage.CurrentContext, Prefix_Token);
+            var data = tokenMap.Get((ByteString)tokenId);
+            Assert(data is not null, "UpdateProperties: tokenid not exist");
+            TokenState tokenState = (TokenState)StdLib.Deserialize(data);
+            tokenState.Attributes = attributes;
+            tokenMap.Put((ByteString)tokenId, StdLib.Serialize(tokenState));
+            OnUpdateProperties((ByteString)tokenId);
         }
 
         /// <summary>

@@ -11,6 +11,14 @@ using Neo.SmartContract.Framework;
 
 namespace ilexNft
 {
+    //string dna, BigInteger edition, BigInteger date
+    public struct PaymentData17
+    {
+        public string Dna;
+        public BigInteger Edition;
+        public BigInteger Date;
+    }
+
     public struct IlexAttribute
     {
         public string Trait_type;
@@ -71,8 +79,20 @@ namespace ilexNft
         public static string BaseImage()
         {
             return BaseImageStorage.Get();
-        } 
+        }
 
+        [Safe]
+        public static BigInteger FloorPrice(UInt160 asset)
+        {
+            return AssetStorage.Get(asset);
+        }
+
+        [Safe]
+        public static ByteString SerilizeNEP17Payment(string dna, BigInteger edition, BigInteger date)
+        {
+            PaymentData17 paymentData17 = new PaymentData17() { Date = date, Edition = edition, Dna = dna };
+            return StdLib.Serialize(paymentData17);
+        }
 
         [Safe]
         public static ByteString SerilizeAttribute(ByteString type, ByteString value)
@@ -141,13 +161,23 @@ namespace ilexNft
             return map;
         }
 
-        public static void Create(UInt160 owner, string dna, BigInteger edition, BigInteger date)
+        public static void OnNEP17Payment(UInt160 from, BigInteger amount, object data)
         {
-            ///是否需要收费？？？
+            UInt160 caller = Runtime.CallingScriptHash;
+            Assert(amount > 0, "OnNEP17Payment: amount need more than zero");
+            Assert(AssetStorage.Get(caller) == amount, "OnNEP17Payment: amount");
+            PaymentData17 paymentData17 = (PaymentData17)StdLib.Deserialize((ByteString)data);
+            Create(from, paymentData17.Dna, paymentData17.Edition, paymentData17.Date);
+        }
+
+        public static void OnNEP11Payment(UInt160 from, BigInteger amount, ByteString tokenId, object data)
+        {
+
+        }
 
 
-            Assert(Runtime.CheckWitness(owner), "Create: CheckWitness failed");
-
+        private static void Create(UInt160 owner, string dna, BigInteger edition, BigInteger date)
+        {
             CounterStorage.Increase();
             BigInteger tokenId = CounterStorage.Current();
 
@@ -165,18 +195,6 @@ namespace ilexNft
                 Attributes = ""
             };
             Mint((ByteString)tokenId, tokenState);
-        }
-
-        public static void UpdateProperties(BigInteger tokenId, ByteString attributes)
-        {
-            Assert(Runtime.CheckWitness(GetOwner()), "UpdateProperties: CheckWitness failed");
-            StorageMap tokenMap = new(Storage.CurrentContext, Prefix_Token);
-            var data = tokenMap.Get((ByteString)tokenId);
-            Assert(data is not null, "UpdateProperties: tokenid not exist");
-            TokenState tokenState = (TokenState)StdLib.Deserialize(data);
-            tokenState.Attributes = attributes;
-            tokenMap.Put((ByteString)tokenId, StdLib.Serialize(tokenState));
-            OnUpdateProperties((ByteString)tokenId);
         }
     }
 }
